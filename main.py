@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import json
 import os
+import configparser
 import matplotlib.pyplot as plt
 import matplotlib.patches as pch
 import networkx as nx
@@ -57,6 +58,20 @@ class DataSets():
         #print(png_path, npy_path, json_path)
         return png_path, npy_path, json_path
     
+    def get_Text_in_json(self, json_data):
+        
+        # 假设 'shapes' 是你需要排序和遍历的键
+        if 'shapes' in json_data:
+            # 对 'shapes' 列表按 'group_id' 进行排序
+            sorted_shapes = sorted(json_data['shapes'], key=lambda x: x['group_id'])
+            
+            # 收集所有标记为 'Text' 的注释文本
+            text = [shape['annotation'] for shape in sorted_shapes if shape.get('label') == 'Text']
+            
+            return text
+        else:
+            return []
+
     def get_data_in_json(self, json_data):
         Height =    json_data['imageHeight']
         Width =     json_data['imageWidth']
@@ -104,14 +119,91 @@ class Drawer():
         self.colors =           colors
         self.output_path =      output_path
         self.id =               id
-
-    def draw_text():# TODO
-        pass
+        self.translated_data =  {
+                                    "显示屏": "Display Screen",
+                                    "触摸键": "Touch Button",
+                                    "出气口": "Air Outlet",
+                                    "烤盘": "Baking Tray",
+                                    "烤架": "Grill Rack",
+                                    "层架位置": "Rack",
+                                    "门体": "Door Body",
+                                    "把手": "Handle",
+                                    "电源/除甲醛显示": "Power/Formaldehyde Display",
+                                    "定时/静眠显示": "Timer/Sleep Display",
+                                    "运转显示": "Operation Display",
+                                    "温度显示": "Temperature Display",
+                                    "模式键": "Mode Button",
+                                    "风速键": "Fan Speed Button",
+                                    "辅热键": "Auxiliary Heat Button (Not available on cooling-only models)",
+                                    "开机/关机键": "Power On/Off Button",
+                                    "静眠键": "Sleep Button",
+                                    "温度设定键": "Temperature Setting Button",
+                                    "左右风向键": "Airflow Direction Button",
+                                    "智能键": "Smart Button",
+                                    "上下风向键": "Up/Down Airflow Direction Button",
+                                    "定时键": "Timer Button",
+                                    "时间调节键/强/静键": "Time Adjustment/Strong/Silent Button",
+                                    "设定键/显示键": "Setting Button",
+                                    "时间调节键/健康键": "Time Adjustment/Health Button",
+                                    "复位键": "Reset Button",
+                                    "锁定键": "Lock Button",
+                                    "顶盖": "Top Cover",
+                                    "门锁": "Door Lock",
+                                    "洗涤剂盒": "Detergent Box",
+                                    "控制面板": "Control Panel",
+                                    "控制盘": "Control Panel",
+                                    "内筒": "Drum",
+                                    "门": "Door",
+                                    "排水泵盒盖": "Drain Pump Cover",
+                                    "热水管": "Hot Water Pipe",
+                                    "喷头": "Nozzle",
+                                    "冷水管": "Cold Water Pipe",
+                                    "显示窗口": "Display Window",
+                                    "出水嘴": "Water Spout",
+                                    "接水盒": "Water Collection",
+                                    "进风口": "Air Inlet",
+                                    "前面板": "Front Panel",
+                                    "出风口": "Air Outlet",
+                                    "导风板上下风向调节": "Air Guide Up/Down Adjustment",
+                                    "竖摆叶（内部）左右风向调节": "Vertical Blades (Internal) Left/Right Adjustment",
+                                    "空气滤清器/过滤网（内部）": "Air Filter/Filter Net (Internal)",
+                                    "电源线": "Power Cord",
+                                    "触摸开关": "Touch Switch",
+                                    "拉手": "Pull Handle",
+                                    "上碗架": "Upper Dish Rack",
+                                    "上门体": "Upper Door Body",
+                                    "下碗架": "Lower Dish Rack",
+                                    "下门体": "Lower Door Body",
+                                    "玻璃门": "Glass Door",
+                                    "机仓": "Machine Compartment",
+                                    "窗口": "Window",
+                                    "机仓格栅": "Compartment Grille",
+                                    "脚轮": "Caster Wheel",
+                                    "不锈钢灶面": "Stainless Steel Stove Surface",
+                                    "外环火盖": "Outer Burner Cap",
+                                    "支锅架": "Pot Support Rack",
+                                    "内环火盖": "Inner Burner Cap",
+                                    "热电偶": "Thermocouple",
+                                    "点火瓷针": "Ignition Ceramic Pin",
+                                    "一体炉头": "Integrated Burner Head",
+                                    "旋钮": "Knob",
+                                    "灶壳": "Stove Shell",
+                                    "前面板": "Front Panel",
+                                    "进风栅面板": "Air Inlet Grille Panel",
+                                    "左右进风栅(内有滤尘网)": "Air Inlet Grille",
+                                    "下进风口(内有滤尘网)": "Lower Air Inlet",
+                                    "电源/除甲醛显示": "Power/Formaldehyde Display",
+                                    "定时/静眠显示": "Timer/Sleep Display",
+                                    "运转显示": "Operation Display",
+                                    "辅热键(单冷机型无此功能)": "Auxiliary Heat Button",
+                                }
         
-    def plot(self, run_model, left_center, debug, dpi):
+    def plot(self, run_model, left_center, debug, dpi, text_list):
         
         # 设置画布大小
         plt.figure(figsize=(self.width / 100, self.height / 100))
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+
         line_width = 0.001*min(self.height,self.width)
         
         if len(self.pred_npy) != len(self.rectrangle_info):
@@ -134,7 +226,7 @@ class Drawer():
                 # 绘制预测文本框的中心点
                 if left_center == 1:
                     plt.scatter(self.pred_npy[i][0], self.pred_npy[i][1], s=5, color=self.colors[i], alpha=0.5)# 当传入的数据是中心点时，可以用这个来画点
-                elif left_center == 0: #TODO 这有个bug要修理
+                elif left_center == 0: # 这有个bug要修理
                     plt.scatter(self.pred_npy[i][0] + int(self.rectrangle_info[i]['rectrangle_width']) / 2, self.pred_npy[i][1] + int(self.rectrangle_info[i]['rectrangle_height']), s=5, color=self.colors[i], alpha=0.5)# 当传入的数据是左上角点时，可以用这个来画点
             elif run_model == 'study' or run_model == 'Text':
                 pass
@@ -152,12 +244,12 @@ class Drawer():
             x =                     center_x - width / 2
             y =                     center_y - height / 2
 
-            if run_model == 'plot' or run_model == 'study':
+            if run_model == 'plot' or run_model == 'study': # //TODO 这里的效果应该是Text框里面没有线
                 #绘制anchor与预测Text框的中心点的连线
                 if left_center == 1:
-                    plt.plot([self.pred_npy[i][0], self.npy_data[i][0]], [self.pred_npy[i][1], self.npy_data[i][1]], color=self.colors[i])# 当传入的数据是中心点时，可以用这个来画线
+                    plt.plot([self.pred_npy[i][0], self.npy_data[i][0]], [self.pred_npy[i][1], self.npy_data[i][1]], color=self.colors[i], zorder=1)# 当传入的数据是中心点时，可以用这个来画线
                 elif left_center == 0:
-                    plt.plot([self.pred_npy[i][0] + self.rectrangle_info[i]['rectrangle_width'] / 2, self.npy_data[i][0]], [self.pred_npy[i][1] + self.rectrangle_info[i]['rectrangle_height'] / 2, self.npy_data[i][1]], color=self.colors[i]) # 当传入的点是左上角点时，可以用这个来画线
+                    plt.plot([self.pred_npy[i][0] + self.rectrangle_info[i]['rectrangle_width'] / 2, self.npy_data[i][0]], [self.pred_npy[i][1] + self.rectrangle_info[i]['rectrangle_height'] / 2, self.npy_data[i][1]], color=self.colors[i], zorder=1) # 当传入的点是左上角点时，可以用这个来画线
             elif run_model == 'Text':
                 #绘制anchor与真实Text框的中心点的连线
                 plt.plot([center_x, self.npy_data[i][0]], [center_y, self.npy_data[i][1]], color=self.colors[i])
@@ -165,15 +257,15 @@ class Drawer():
             # plot模式，都画
             if run_model == 'plot':
                 '''创建ground truth的矩形框'''
-                rect = pch.Rectangle((x, y), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none')
+                rect = pch.Rectangle((x, y), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none', zorder=4)
                 plt.gca().add_patch(rect)
 
                 '''绘制pred矩形框'''
                 '''这里有两种npy的储存方式，一种是中心点，一种是左上角点，这里根据实际情况选择一种即可'''
                 if left_center == 1:
-                    rect_pred = pch.Rectangle((self.pred_npy[i][0] - width / 2, self.pred_npy[i][1] - height / 2), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none', linestyle='--') # 中心点
+                    rect_pred = pch.Rectangle((self.pred_npy[i][0] - width / 2, self.pred_npy[i][1] - height / 2), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='white', linestyle='--') # 中心点
                 elif left_center == 0:
-                    rect_pred = pch.Rectangle((self.pred_npy[i][0], self.pred_npy[i][1]), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none', linestyle='--') # 左上角点
+                    rect_pred = pch.Rectangle((self.pred_npy[i][0], self.pred_npy[i][1]), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='white', linestyle='--') # 左上角点
 
                 plt.gca().add_patch(rect_pred)
 
@@ -182,18 +274,29 @@ class Drawer():
                 '''绘制pred矩形框'''
                 '''这里有两种npy的储存方式，一种是中心点，一种是左上角点，这里根据实际情况选择一种即可'''
                 if left_center == 1:
-                    rect_pred = pch.Rectangle((self.pred_npy[i][0] - width / 2, self.pred_npy[i][1] - height / 2), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none', linestyle='--') # 中心点
+                    rect_pred = pch.Rectangle((self.pred_npy[i][0] - width / 2, self.pred_npy[i][1] - height / 2), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='white', linestyle='--') # 中心点
                 elif left_center == 0:
-                    rect_pred = pch.Rectangle((self.pred_npy[i][0], self.pred_npy[i][1]), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none', linestyle='--') # 左上角点
+                    rect_pred = pch.Rectangle((self.pred_npy[i][0], self.pred_npy[i][1]), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='white', linestyle='--') # 左上角点
 
                 plt.gca().add_patch(rect_pred)
 
             # Text模式，只画ground-truth
             if run_model == 'Text':
                 '''创建ground truth的矩形框'''
-                rect = pch.Rectangle((x, y), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='none')
+                rect = pch.Rectangle((x, y), width, height, linewidth=line_width, edgecolor=self.colors[i], facecolor='white', zorder=3)
                 plt.gca().add_patch(rect)
-                #self.draw_text()
+                # 计算矩形中心
+                center_x_rect = x + width / 2
+                center_y_rect = y + height / 2
+
+                # 找到text[i]在self.translation_data里对应的英文值
+                if text_list[i] in self.translated_data:
+                    english_word = self.translated_data[text_list[i]]
+                else:
+                    print(f"'{text_list[i]}' not found in the translation data.")
+                    english_word = 'Error'
+                # 在矩形中心添加文本
+                plt.text(center_x_rect, center_y_rect, english_word, ha='center', va='center', fontsize=15)
         
         plt.imshow(self.png_data)
         # 取消白边
@@ -233,14 +336,38 @@ def main(options):
         id = id_long.split(':')[0]
         png_path, npy_path, json_path = dataloader.get_full_path(id)
         try:
-            png_data =  dataloader.read_png(png_path)
-            npy_data =  dataloader.read_npy(npy_path)
+            png_data = dataloader.read_png(png_path)
+        except Exception as e:
+            print(f"Error: {id} - Failed to read PNG data from {png_path}. Details: {e}")
+            continue
+
+        try:
+            npy_data = dataloader.read_npy(npy_path)
+        except Exception as e:
+            print(f"Error: {id} - Failed to read NPY data from {npy_path}. Details: {e}")
+            continue
+
+        try:
             json_data = dataloader.read_json(json_path)
-            pred_npy =  dataloader.get_pred_npy(id)
-            #print(pred_npy)
-        except:
-            print(f"Error: {id} data read error!")
-            continue 
+        except Exception as e:
+            print(f"Error: {id} - Failed to read JSON data from {json_path}. Details: {e}")
+            continue
+
+        try:
+            pred_npy = dataloader.get_pred_npy(id)
+        except Exception as e:
+            print(f"Error: {id} - Failed to get prediction NPY. Details: {e}")
+            continue
+
+        try:
+            text_list = dataloader.get_Text_in_json(json_data)
+            # 去除text_list中的换行符
+            text_list = [text.replace('\n', '') for text in text_list]
+            #print(text_list)
+        except Exception as e:
+            print(f"Error: {id} - Failed to extract text from JSON data. Details: {e}")
+            continue
+
         # 判断是png_data，npy_data，json_data是否读取成功
         if png_data is None or npy_data is None or json_data is None:
             print(f"Error: {id} data is None!")
@@ -252,7 +379,8 @@ def main(options):
         else:
             pred_npy_denormalization = pred_npy # 不进行归一化
         drawer = Drawer(height, width, png_data, npy_data, rectrangle_info, pred_npy_denormalization,output_path, id)
-        drawer.plot(run_model, left_center, debug, dpi)
+        drawer.plot(run_model, left_center, debug, dpi, text_list)
+        
         
         # 销毁对象, 释放内存
         del drawer
@@ -274,7 +402,7 @@ def main(options):
 if __name__ == '__main__':
     options = {
         'denormalization':      True,                               #传入的数据是否需要反归一化, bool
-        'run_model':            'Text',                            #选择运行模型。Text是画有文字内容的图片，plot是绘制ground-truth和pred的对比图，study是绘制userstudy用的图片 ['plot','study','Text']
+        'run_model':            'study',                            #选择运行模型。Text是画有文字内容的图片，plot是绘制ground-truth和pred的对比图，study是绘制userstudy用的图片 ['plot','study','Text']
         'dpi':                  300,                                #保存图像时用的dpi, int
         'left_or_center':       1,                                  #0是左上角，1是中心点 [0,1]
         'datasets_path':        'G:\SWUIllustration_869_v1',        #数据集的位置 string
@@ -283,7 +411,7 @@ if __name__ == '__main__':
         'pred_data':            './LPGT',                           #预测的Text框，以npy的格式储存 string
         'task_list':            'new.txt',                          #要进行可视化的图片，放在Layout文件夹下 string
         'output_path':          './lpgt_output_new1',               #输出图片的存放位置 string
-        'debug':                True                               #是否以debug模式运行,只画一张图，并且显示图片 bool
+        'debug':                False                               #是否以debug模式运行,只画一张图，并且显示图片 bool
     }
 
     main(options)
